@@ -114,12 +114,17 @@ class _TourMapPageState extends State<TourMapPage> {
 
   void _openAIAssistantDialog() {
     final isId = AppLanguage.isIndonesian;
-    final suggestedPlace = widget.mapViewModel.places.isEmpty
-        ? null
-        : widget.mapViewModel.places.first;
-    final suggestedDistance = suggestedPlace == null
-        ? 0
-        : widget.mapViewModel.calculateDistance(suggestedPlace);
+
+    // Ambil tempat dari ikon yang sedang dipencet user di peta (selectedPlace)
+    // Jika belum ada yang dipencet, gunakan tempat pertama sebagai default
+    final targetPlace = widget.mapViewModel.selectedPlace ??
+        (widget.mapViewModel.places.isEmpty
+            ? null
+            : widget.mapViewModel.places.first);
+
+    // Panggil Gemini AI melalui Backend Express.js sesuai ikon yang dipilih
+    widget.mapViewModel.mintaSaranGeminiAi();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -128,127 +133,169 @@ class _TourMapPageState extends State<TourMapPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
+        return ListenableBuilder(
+          listenable: widget.mapViewModel,
+          builder: (context, _) {
+            final vm = widget.mapViewModel;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
               ),
-              const SizedBox(height: 16),
-              Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    color: Color(0xFFE89A3C),
-                    size: 22,
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.auto_awesome,
+                        color: Color(0xFFE89A3C),
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isId
+                            ? 'AI Tour Guide Kayutangan'
+                            : 'Kayutangan AI Tour Guide',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Text(
                     isId
-                        ? 'AI Tour Guide Kayutangan'
-                        : 'Kayutangan AI Tour Guide',
+                        ? 'AI mendeteksi lokasi real-time Anda di gang heritage. Berikut rute santai terbaik:'
+                        : 'AI detected your real-time position near heritage alleys. Here is your best relaxed route:',
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Color(0xFF666666),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF6F8F4),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE0E8DA)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isId
+                              ? '💡 Saran Langkah AI:'
+                              : '💡 AI Suggested Route:',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Color(0xFF2C391E),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (vm.isLoadingAi)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    isId
+                                        ? 'Gemini AI sedang menyusun rute terbaik untuk ${targetPlace?.title ?? "lokasi ini"}...'
+                                        : 'Gemini AI is generating the best route for ${targetPlace?.title ?? "this spot"}...',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF555555),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Text(
+                            vm.saranLangkahAi,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              height: 1.45,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: vm.isLoadingAi
+                          ? null
+                          : () {
+                              Navigator.pop(ctx);
+                              if (targetPlace != null) {
+                                widget.mapViewModel.selectPlace(targetPlace);
+                                widget.mapViewModel.selectSuggestedRoute();
+                                _mapController.move(
+                                  _placePosition(targetPlace),
+                                  17.8,
+                                );
+                              }
+                            },
+                      icon: const Icon(
+                        Icons.navigation_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      label: Text(
+                        isId
+                            ? 'Pandu Saya ke Rute Ini'
+                            : 'Guide Me Along This Route',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                isId
-                    ? 'AI mendeteksi lokasi real-time Anda di gang heritage. Berikut rute santai terbaik:'
-                    : 'AI detected your real-time position near heritage alleys. Here is your best relaxed route:',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6F8F4),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE0E8DA)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isId ? '💡 Saran Langkah AI:' : '💡 AI Suggested Route:',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Color(0xFF2C391E),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      isId
-                          ? '1. Jembatan & Kanal Kayutangan (${suggestedDistance}m) - Spot foto terbaik saat sore.\n'
-                                '2. Rumah Kolonial 1870 untuk wisata Sejarah.\n'
-                                '3. Santap sore di Calathea Garden Kafe atau Kopi Lonceng.'
-                          : '1. Kayutangan Bridge & Canal (${suggestedDistance}m) - Best photo spot.\n'
-                                '2. Colonial House 1870 for Historical exploration.\n'
-                                '3. Relax at Calathea Garden Cafe or Kopi Lonceng.',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        height: 1.45,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    if (suggestedPlace != null) {
-                      _mapController.move(_placePosition(suggestedPlace), 17.8);
-                      widget.mapViewModel.selectSuggestedRoute();
-                    }
-                  },
-                  icon: const Icon(
-                    Icons.navigation_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  label: Text(
-                    isId
-                        ? 'Pandu Saya ke Rute Ini'
-                        : 'Guide Me Along This Route',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -303,6 +350,22 @@ class _TourMapPageState extends State<TourMapPage> {
                           keepBuffer: 1,
                           maxZoom: 19,
                         ),
+
+                        // LAYER GARIS PANDUAN RUTE (Muncul saat klik "Pandu Saya ke Rute Ini")
+                        if (viewModel.isRouteGuided &&
+                            viewModel.activeRoutePoints.length >= 2)
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: viewModel.activeRoutePoints
+                                    .map(_toLatLng)
+                                    .toList(),
+                                strokeWidth: 4.5,
+                                color: AppColors.primary,
+                              ),
+                            ],
+                          ),
+
                         MarkerLayer(
                           markers: [
                             // User GPS Marker

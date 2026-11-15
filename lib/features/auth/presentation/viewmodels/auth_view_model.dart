@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../domain/entities/user.dart';
 import '../../domain/usecases/login_user.dart';
 import '../../domain/usecases/register_user.dart';

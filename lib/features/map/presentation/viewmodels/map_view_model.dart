@@ -1,7 +1,9 @@
 import 'dart:async';
-
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
+import '../../../../core/api_config.dart';
 import '../../../category/domain/entities/place.dart';
 import '../../domain/entities/geo_point.dart';
 import '../../domain/entities/tour_route.dart';
@@ -27,6 +29,14 @@ class MapViewModel extends ChangeNotifier {
   String searchQuery = '';
   String? pesanError;
   int _simulationStep = 0;
+
+  // --- STATE UNTUK TANYA AI (GEMINI AI) & PANDUAN RUTE ---
+  bool isLoadingAi = false;
+  bool isRouteGuided = false;
+  String saranLangkahAi =
+      '1. Jembatan & Kanal Kayutangan - Spot foto terbaik saat sore.\n'
+      '2. Rumah Kolonial 1870 untuk wisata Sejarah.\n'
+      '3. Santap sore di Calathea Garden Kafe atau Kopi Lonceng.';
 
   MapViewModel({
     required AmbilTitikTour ambilTitikTour,
@@ -55,6 +65,23 @@ class MapViewModel extends ChangeNotifier {
           query.isEmpty || place.title.toLowerCase().contains(query);
       return matchesCategory && matchesQuery;
     }).toList();
+  }
+
+  /// Menghasilkan titik-titik garis rute menuju ikon tempat yang sedang dipilih (selectedPlace)
+  List<GeoPoint> get activeRoutePoints {
+    final start = userPosition ?? route?.initialUserPosition;
+    final target = selectedPlace;
+
+    if (start != null &&
+        target != null &&
+        target.latitude != null &&
+        target.longitude != null) {
+      return [
+        start,
+        GeoPoint(latitude: target.latitude!, longitude: target.longitude!),
+      ];
+    }
+    return route?.simulationPath ?? const <GeoPoint>[];
   }
 
   void ambilDataPeta() {
@@ -91,6 +118,67 @@ class MapViewModel extends ChangeNotifier {
 
   void updateUserPosition(GeoPoint position) {
     userPosition = position;
+    notifyListeners();
+  }
+
+  /// Fungsi memanggil Gemini AI di Backend berdasarkan ikon yang sedang diklik di peta (selectedPlace)
+  Future<void> mintaSaranGeminiAi() async {
+    final place = selectedPlace ?? (places.isNotEmpty ? places.first : null);
+    final namaTempat = place?.title ?? 'Jembatan dan Kanal Kayutangan';
+    final kategori = place?.categoryKey ?? 'Wisata Heritage';
+    final jarakMeter = place != null ? calculateDistance(place) : 50;
+    final jarakText = '${jarakMeter}m';
+
+    isLoadingAi = true;
+    notifyListeners();
+
+    try {
+      // Menyesuaikan otomatis apakah ApiConfig.baseUrl sudah ada '/api' atau belum
+      final base = ApiConfig.baseUrl.endsWith('/api')
+          ? ApiConfig.baseUrl
+          : '${ApiConfig.baseUrl}/api';
+
+      final response = await http
+          .post(
+            Uri.parse('$base/ai/gemini-route'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'nama_tempat': namaTempat,
+              'kategori': kategori,
+              'jarak': jarakText,
+            }),
+          )
+          .timeout(const Duration(seconds: 12));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['saran_langkah'] != null &&
+            data['saran_langkah'].toString().trim().isNotEmpty) {
+          saranLangkahAi = data['saran_langkah'].toString().trim();
+        }
+      } else {
+        _setFallbackSaranAi(namaTempat, jarakText);
+      }
+    } catch (e) {
+      debugPrint('Gagal memanggil Gemini AI Backend: $e');
+      _setFallbackSaranAi(namaTempat, jarakText);
+    } finally {
+      isLoadingAi = false;
+      notifyListeners();
+    }
+  }
+
+  void _setFallbackSaranAi(String namaTempat, String jarakText) {
+    saranLangkahAi =
+        '1. $namaTempat ($jarakText) - Spot kunjungan utama pilihan Anda saat ini.\n'
+        '2. Rumah Kolonial 1870 untuk wisata Sejarah di sekitar rute.\n'
+        '3. Santap sore di Calathea Garden Kafe atau Kopi Lonceng.';
+  }
+
+  /// Dipanggil saat tombol "Pandu Saya ke Rute Ini" di dalam modal Tanya AI ditekan
+  void selectSuggestedRoute() {
+    selectedPlace ??= places.isEmpty ? null : places.first;
+    isRouteGuided = true;
     notifyListeners();
   }
 
@@ -146,11 +234,6 @@ class MapViewModel extends ChangeNotifier {
     if (path.isEmpty) return;
     _simulationStep = (_simulationStep + 1) % path.length;
     updateUserPosition(path[_simulationStep]);
-  }
-
-  void selectSuggestedRoute() {
-    selectedPlace = places.isEmpty ? null : places.first;
-    notifyListeners();
   }
 
   int calculateDistance(Place place) {
