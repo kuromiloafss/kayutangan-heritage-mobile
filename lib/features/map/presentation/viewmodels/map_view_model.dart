@@ -148,7 +148,7 @@ class MapViewModel extends ChangeNotifier {
               'jarak': jarakText,
             }),
           )
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
