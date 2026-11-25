@@ -1,38 +1,108 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
+import '../../domain/entities/user.dart';
+
 class AuthRemoteDataSource {
-  // PENTING: Sesuaikan URL ini.
-  // - Jika run di Web / Windows: http://localhost:3000
-  // - Jika run di Android Emulator: http://10.0.2.2:3000
-  // - Jika run di HP Asli (OPPO): http://IP_WIFI_LAPTOP:3000
+  // Alamat backend Node.js
   final String baseUrl = 'http://localhost:3000/api/auth';
 
-  Future<bool> registerUser(String nama, String email, String telepon, String password) async {
+  // ======================================
+  // REGISTER
+  // ======================================
+
+  Future<User> registerUser({
+    required String nama,
+    required String email,
+    required String telepon,
+    required String password,
+  }) async {
     final url = Uri.parse('$baseUrl/register');
-    
+
     try {
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({
-          'nama_lengkap': nama,
+          'nama': nama,
           'email': email,
-          'nomor_telepon': telepon,
-          'kata_sandi': password,
+          'no_hp': telepon,
+          'password': password,
         }),
       );
 
-      print('Status API: ${response.statusCode}'); // Cek di terminal VS Code
-      print('Balasan API: ${response.body}');
+      print('REGISTER STATUS: ${response.statusCode}');
+      print('REGISTER RESPONSE: ${response.body}');
 
-      if (response.statusCode == 201) {
-        return true; // Sukses daftar
-      } else {
-        throw Exception(jsonDecode(response.body)['message']);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201 &&
+          data['success'] == true) {
+        return User.fromJson(data['data']);
       }
+
+      throw Exception(
+        data['message'] ?? 'Registrasi gagal.',
+      );
     } catch (e) {
-      throw Exception('Gagal nyambung ke server: $e');
+      if (e is Exception) {
+        rethrow;
+      }
+
+      throw Exception(
+        'Tidak dapat menghubungi backend: $e',
+      );
+    }
+  }
+
+  // ======================================
+  // LOGIN
+  // ======================================
+
+  Future<User> loginUser({
+    required String identifier,
+    required String password,
+  }) async {
+    final url = Uri.parse('$baseUrl/login');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'identifier': identifier,
+          'password': password,
+        }),
+      );
+
+      print('LOGIN STATUS: ${response.statusCode}');
+      print('LOGIN RESPONSE: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 &&
+          data['success'] == true) {
+        return User.fromJson(data['data']);
+      }
+
+      throw Exception(
+        data['message'] ?? 'Login gagal.',
+      );
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+
+      throw Exception(
+        'Tidak dapat menghubungi backend: $e',
+      );
     }
   }
 }

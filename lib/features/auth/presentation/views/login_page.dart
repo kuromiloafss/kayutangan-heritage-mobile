@@ -54,36 +54,42 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    final loggedIn = widget.vm.login(
-      identifier: _identifierController.text,
-      password: _passwordController.text,
-      languageCode: AppLanguage.currentLocale.value,
-    );
-    if (!loggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.vm.pesanError ?? ''),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-      return;
-    }
+  Future<void> _handleLogin() async {
+  final loggedIn = await widget.vm.login(
+    identifier: _identifierController.text,
+    password: _passwordController.text,
+    languageCode: AppLanguage.currentLocale.value,
+  );
 
-    Navigator.pushReplacement(
-      context,
-      _createSmoothRoute(
-        HomePage(
-          profileViewModel: widget.profileViewModel,
-          categoryViewModel: widget.categoryViewModel,
-          placeDetailViewModel: widget.placeDetailViewModel,
-          mapViewModel: widget.mapViewModel,
-          ticketViewModel: widget.ticketViewModel,
-          homeViewModel: widget.homeViewModel,
+  if (!mounted) return;
+
+  if (!loggedIn) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          widget.vm.pesanError ?? 'Login gagal.',
         ),
+        backgroundColor: Colors.red.shade700,
       ),
     );
+
+    return;
   }
+
+  Navigator.pushReplacement(
+    context,
+    _createSmoothRoute(
+      HomePage(
+        profileViewModel: widget.profileViewModel,
+        categoryViewModel: widget.categoryViewModel,
+        placeDetailViewModel: widget.placeDetailViewModel,
+        mapViewModel: widget.mapViewModel,
+        ticketViewModel: widget.ticketViewModel,
+        homeViewModel: widget.homeViewModel,
+      ),
+    ),
+  );
+}
 
   // Animasi transisi halus (Fade + Slide Up)
   Route _createSmoothRoute(Widget targetPage) {

@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+
 import '../../domain/entities/user.dart';
 import '../../domain/usecases/login_user.dart';
 import '../../domain/usecases/register_user.dart';
@@ -12,46 +11,66 @@ class AuthViewModel extends ChangeNotifier {
   User? user;
   String? pesanError;
 
+  bool isLoading = false;
+
   AuthViewModel({
     required LoginUser loginUser,
     required RegisterUser registerUser,
-  }) : _loginUser = loginUser,
-       _registerUser = registerUser;
+  })  : _loginUser = loginUser,
+        _registerUser = registerUser;
 
-  bool login({
+  // ======================================
+  // LOGIN
+  // ======================================
+
+  Future<bool> login({
     required String identifier,
     required String password,
     required String languageCode,
-  }) {
+  }) async {
+    if (isLoading) return false;
+
+    isLoading = true;
     pesanError = null;
+    notifyListeners();
+
     try {
-      user = _loginUser.execute(
+      user = await _loginUser.execute(
         identifier: identifier,
         password: password,
         languageCode: languageCode,
       );
-      notifyListeners();
+
       return true;
-    } on ArgumentError catch (error) {
-      pesanError = error.message.toString();
-    } on StateError catch (error) {
-      pesanError = error.message;
+    } catch (error) {
+      pesanError = _cleanError(error);
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
-    notifyListeners();
-    return false;
   }
 
-  bool register({
+  // ======================================
+  // REGISTER
+  // ======================================
+
+  Future<bool> register({
     required String name,
     required String email,
     required String phone,
     required String password,
     required String confirmPassword,
     required String languageCode,
-  }) {
+  }) async {
+    if (isLoading) return false;
+
+    isLoading = true;
     pesanError = null;
+    notifyListeners();
+
     try {
-      user = _registerUser.execute(
+      user = await _registerUser.execute(
         name: name,
         email: email,
         phone: phone,
@@ -59,14 +78,21 @@ class AuthViewModel extends ChangeNotifier {
         confirmPassword: confirmPassword,
         languageCode: languageCode,
       );
-      notifyListeners();
+
       return true;
-    } on ArgumentError catch (error) {
-      pesanError = error.message.toString();
-    } on StateError catch (error) {
-      pesanError = error.message;
+    } catch (error) {
+      pesanError = _cleanError(error);
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
-    notifyListeners();
-    return false;
+  }
+
+  String _cleanError(Object error) {
+    return error
+        .toString()
+        .replaceFirst('Exception: ', '')
+        .replaceFirst('Invalid argument(s): ', '');
   }
 }

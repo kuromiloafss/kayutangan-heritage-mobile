@@ -4,59 +4,59 @@ import '../repositories/user_repository.dart';
 class RegisterUser {
   final UserRepository repository;
 
-  const RegisterUser({required this.repository});
+  const RegisterUser({
+    required this.repository,
+  });
 
-  User execute({
+  Future<User> execute({
     required String name,
     required String email,
     required String phone,
     required String password,
     required String confirmPassword,
     String languageCode = 'id',
-  }) {
+  }) async {
     final normalizedName = name.trim();
-    final normalizedEmail = email.trim();
+    final normalizedEmail = email.trim().toLowerCase();
 
-    if (normalizedName.isEmpty || normalizedEmail.isEmpty || password.isEmpty) {
+    if (normalizedName.isEmpty ||
+        normalizedEmail.isEmpty ||
+        phone.trim().isEmpty ||
+        password.isEmpty) {
       throw ArgumentError(
-        languageCode == 'id'
-            ? 'Mohon lengkapi formulir pendaftaran!'
-            : 'Please complete the registration form!',
+        'Mohon lengkapi semua formulir pendaftaran!',
       );
     }
+
     if (!_isValidEmail(normalizedEmail)) {
       throw ArgumentError(
-        languageCode == 'id'
-            ? 'Format email tidak valid'
-            : 'Invalid email format',
-      );
-    }
-    if (password != confirmPassword) {
-      throw ArgumentError(
-        languageCode == 'id'
-            ? 'Konfirmasi kata sandi tidak cocok!'
-            : 'Passwords do not match!',
-      );
-    }
-    if (repository.emailExists(normalizedEmail)) {
-      throw StateError(
-        languageCode == 'id'
-            ? 'Email sudah terdaftar'
-            : 'Email is already registered',
+        'Format email tidak valid.',
       );
     }
 
-    final user = User(
+    if (password.length < 8) {
+      throw ArgumentError(
+        'Kata sandi minimal 8 karakter.',
+      );
+    }
+
+    if (password != confirmPassword) {
+      throw ArgumentError(
+        'Konfirmasi kata sandi tidak cocok!',
+      );
+    }
+
+    return await repository.register(
       name: normalizedName,
       email: normalizedEmail,
       phone: phone.trim(),
       password: password,
     );
-    repository.saveUser(user);
-    return user;
   }
 
   bool _isValidEmail(String email) {
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+    return RegExp(
+      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+    ).hasMatch(email);
   }
 }

@@ -59,52 +59,57 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  void _handleRegister() {
-    final success = widget.vm.register(
-      name: _nameController.text,
-      email: _emailController.text,
-      phone: _phoneController.text,
-      password: _passwordController.text,
-      confirmPassword: _confirmPasswordController.text,
-      languageCode: AppLanguage.currentLocale.value,
-    );
-    if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.vm.pesanError ?? ''),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-      return;
-    }
+ Future<void> _handleRegister() async {
+  final success = await widget.vm.register(
+    name: _nameController.text,
+    email: _emailController.text,
+    phone: _phoneController.text,
+    password: _passwordController.text,
+    confirmPassword: _confirmPasswordController.text,
+    languageCode: AppLanguage.currentLocale.value,
+  );
 
+  if (!mounted) return;
+
+  if (!success) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          AppLanguage.isIndonesian
-              ? 'Akun berhasil dibuat! Selamat datang.'
-              : 'Account created successfully! Welcome.',
+          widget.vm.pesanError ?? 'Registrasi gagal.',
         ),
-        backgroundColor: const Color(0xFF334227),
+        backgroundColor: Colors.red.shade700,
       ),
     );
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomePage(
-          profileViewModel: widget.profileViewModel,
-          categoryViewModel: widget.categoryViewModel,
-          placeDetailViewModel: widget.placeDetailViewModel,
-          mapViewModel: widget.mapViewModel,
-          ticketViewModel: widget.ticketViewModel,
-          homeViewModel: widget.homeViewModel,
-        ),
-      ),
-      (route) => false,
-    );
+    return;
   }
 
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        AppLanguage.isIndonesian
+            ? 'Akun berhasil dibuat! Selamat datang.'
+            : 'Account created successfully! Welcome.',
+      ),
+      backgroundColor: const Color(0xFF334227),
+    ),
+  );
+
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(
+      builder: (context) => HomePage(
+        profileViewModel: widget.profileViewModel,
+        categoryViewModel: widget.categoryViewModel,
+        placeDetailViewModel: widget.placeDetailViewModel,
+        mapViewModel: widget.mapViewModel,
+        ticketViewModel: widget.ticketViewModel,
+        homeViewModel: widget.homeViewModel,
+      ),
+    ),
+    (route) => false,
+  );
+}
   @override
   Widget build(BuildContext context) {
     final isId = AppLanguage.isIndonesian;

@@ -4,52 +4,45 @@ import '../repositories/user_repository.dart';
 class LoginUser {
   final UserRepository repository;
 
-  const LoginUser({required this.repository});
+  const LoginUser({
+    required this.repository,
+  });
 
-  User execute({
+  Future<User> execute({
     required String identifier,
     required String password,
     String languageCode = 'id',
-  }) {
+  }) async {
     final normalizedIdentifier = identifier.trim();
+
     if (normalizedIdentifier.isEmpty) {
       throw ArgumentError(
-        languageCode == 'id'
-            ? 'Email atau nomor telepon wajib diisi'
-            : 'Email or phone number is required',
+        'Email atau nomor telepon wajib diisi.',
       );
     }
+
     if (password.isEmpty) {
       throw ArgumentError(
-        languageCode == 'id'
-            ? 'Kata sandi wajib diisi'
-            : 'Password is required',
+        'Kata sandi wajib diisi.',
       );
     }
+
     if (normalizedIdentifier.contains('@') &&
         !_isValidEmail(normalizedIdentifier)) {
       throw ArgumentError(
-        languageCode == 'id'
-            ? 'Format email tidak valid'
-            : 'Invalid email format',
+        'Format email tidak valid.',
       );
     }
 
-    final user = repository.findByIdentifier(normalizedIdentifier);
-    if (user == null) {
-      throw StateError(
-        languageCode == 'id' ? 'Akun tidak ditemukan' : 'Account not found',
-      );
-    }
-    if (user.password != password) {
-      throw StateError(
-        languageCode == 'id' ? 'Kata sandi salah' : 'Incorrect password',
-      );
-    }
-    return user;
+    return await repository.login(
+      identifier: normalizedIdentifier,
+      password: password,
+    );
   }
 
   bool _isValidEmail(String email) {
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+    return RegExp(
+      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+    ).hasMatch(email);
   }
 }

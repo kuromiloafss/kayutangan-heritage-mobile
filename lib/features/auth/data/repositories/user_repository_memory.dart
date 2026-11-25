@@ -23,6 +23,39 @@ class UserRepositoryMemory implements UserRepository {
   }
 
   @override
+  Future<User> login({
+    required String identifier,
+    required String password,
+  }) async {
+    final user = findByIdentifier(identifier);
+    if (user == null) {
+      throw Exception('User not found');
+    }
+    return user;
+  }
+
+  @override
+  Future<User> register({
+    required String email,
+    required String name,
+    required String password,
+    required String phone,
+  }) async {
+    if (emailExists(email)) {
+      throw Exception('Email is already registered');
+    }
+
+    final user = User(
+      name: name,
+      email: email,
+      phone: phone,
+    );
+
+    saveUser(user);
+    return user;
+  }
+
+  @override
   void saveUser(User user) {
     _data.add(user);
   }

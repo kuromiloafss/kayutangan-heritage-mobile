@@ -5,7 +5,8 @@ import 'features/account/data/repositories/profile_repository_memory.dart';
 import 'features/account/domain/usecases/ambil_profil.dart';
 import 'features/account/domain/usecases/ubah_profil.dart';
 import 'features/account/presentation/viewmodels/profile_view_model.dart';
-import 'features/auth/data/repositories/user_repository_memory.dart';
+import 'features/auth/data/datasources/auth_remote_datasource.dart';
+import 'features/auth/data/repositories/user_repository_remote.dart';
 import 'features/auth/domain/usecases/login_user.dart';
 import 'features/auth/domain/usecases/register_user.dart';
 import 'features/auth/presentation/viewmodels/auth_view_model.dart';
@@ -41,7 +42,11 @@ import 'features/ticket/domain/usecases/tandai_tiket_digunakan.dart';
 import 'features/ticket/presentation/viewmodels/ticket_view_model.dart';
 
 void main() {
-  final userRepository = UserRepositoryMemory();
+  final authRemoteDataSource = AuthRemoteDataSource();
+
+final userRepository = UserRepositoryRemote(
+  dataSource: authRemoteDataSource,
+);
   final profileRepository = ProfileRepositoryMemory();
   final categoryRepository = CategoryRepositoryMemory();
   final homeRepository = HomeRepositoryMemory(

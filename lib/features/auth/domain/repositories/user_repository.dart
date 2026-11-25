@@ -1,9 +1,15 @@
 import '../entities/user.dart';
 
 abstract class UserRepository {
-  User? findByIdentifier(String identifier);
+  Future<User> register({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+  });
 
-  bool emailExists(String email);
-
-  void saveUser(User user);
+  Future<User> login({
+    required String identifier,
+    required String password,
+  });
 }
